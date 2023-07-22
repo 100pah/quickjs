@@ -12,7 +12,8 @@ typedef struct DebuggerSuspendedState {
     const uint8_t *cur_pc;
 } DebuggerSuspendedState;
 
-static int js_transport_read_fully(JSDebuggerInfo *info, char *buffer, size_t length) {
+static int js_transport_read_fully(JSDebuggerInfo *info, char *buffer, size_t length)
+{
     int offset = 0;
     while (offset < length) {
         int received = info->transport_read(info->transport_udata, buffer + offset, length - offset);
@@ -24,7 +25,8 @@ static int js_transport_read_fully(JSDebuggerInfo *info, char *buffer, size_t le
     return 1;
 }
 
-static int js_transport_write_fully(JSDebuggerInfo *info, const char *buffer, size_t length) {
+static int js_transport_write_fully(JSDebuggerInfo *info, const char *buffer, size_t length)
+{
     int offset = 0;
     while (offset < length) {
         int sent = info->transport_write(info->transport_udata, buffer + offset, length - offset);
@@ -36,7 +38,8 @@ static int js_transport_write_fully(JSDebuggerInfo *info, const char *buffer, si
     return 1;
 }
 
-static int js_transport_write_message_newline(JSDebuggerInfo *info, const char* value, size_t len) {
+static int js_transport_write_message_newline(JSDebuggerInfo *info, const char* value, size_t len)
+{
     // length prefix is 8 hex followed by newline = 012345678\n
     // not efficient, but protocol is then human readable.
     char message_length[10];
@@ -51,7 +54,8 @@ static int js_transport_write_message_newline(JSDebuggerInfo *info, const char* 
     return js_transport_write_fully(info, newline, 1);
 }
 
-static int js_transport_write_value(JSDebuggerInfo *info, JSValue value) {
+static int js_transport_write_value(JSDebuggerInfo *info, JSValue value)
+{
     JSValue stringified = JS_JSONStringify(info->ctx, value, JS_UNDEFINED, JS_UNDEFINED);
     size_t len;
     const char* str = JS_ToCStringLen(info->ctx, &len, stringified);
@@ -66,19 +70,22 @@ static int js_transport_write_value(JSDebuggerInfo *info, JSValue value) {
     return ret;
 }
 
-static JSValue js_transport_new_envelope(JSDebuggerInfo *info, const char *type) {
+static JSValue js_transport_new_envelope(JSDebuggerInfo *info, const char *type)
+{
     JSValue ret = JS_NewObject(info->ctx);
     JS_SetPropertyStr(info->ctx, ret, "type", JS_NewString(info->ctx, type));
     return ret;
 }
 
-static int js_transport_send_event(JSDebuggerInfo *info, JSValue event) {
+static int js_transport_send_event(JSDebuggerInfo *info, JSValue event)
+{
     JSValue envelope = js_transport_new_envelope(info, "event");
     JS_SetPropertyStr(info->ctx, envelope, "event", event);
     return js_transport_write_value(info, envelope);
 }
 
-static int js_transport_send_response(JSDebuggerInfo *info, JSValue request, JSValue body) {
+static int js_transport_send_response(JSDebuggerInfo *info, JSValue request, JSValue body)
+{
     JSContext *ctx = info->ctx;
     JSValue envelope = js_transport_new_envelope(info, "response");
     JS_SetPropertyStr(ctx, envelope, "body", body);
@@ -86,7 +93,8 @@ static int js_transport_send_response(JSDebuggerInfo *info, JSValue request, JSV
     return js_transport_write_value(info, envelope);
 }
 
-static JSValue js_get_scopes(JSContext *ctx, int frame) {
+static JSValue js_get_scopes(JSContext *ctx, int frame)
+{
     // for now this is always the same.
     // global, local, closure. may change in the future. can check if closure is empty.
 
@@ -123,7 +131,8 @@ static inline JS_BOOL JS_IsInteger(JSValueConst v)
 
 static void js_debugger_get_variable_type(JSContext *ctx,
         struct DebuggerSuspendedState *state,
-        JSValue var, JSValue var_val) {
+        JSValue var, JSValue var_val)
+{
 
     // 0 means not expandible
     uint32_t reference = 0;
@@ -159,7 +168,8 @@ static void js_debugger_get_variable_type(JSContext *ctx,
     JS_SetPropertyStr(ctx, var, "variablesReference", JS_NewInt32(ctx, reference));
 }
 
-static void js_debugger_get_value(JSContext *ctx, JSValue var_val, JSValue var, const char *value_property) {
+static void js_debugger_get_value(JSContext *ctx, JSValue var_val, JSValue var, const char *value_property)
+{
     // do not toString on Arrays, since that makes a giant string of all the elements.
     // todo: typed arrays?
     if (JS_IsArray(ctx, var_val)) {
@@ -178,8 +188,9 @@ static void js_debugger_get_value(JSContext *ctx, JSValue var_val, JSValue var, 
 }
 
 static JSValue js_debugger_get_variable(JSContext *ctx,
-    struct DebuggerSuspendedState *state,
-    JSValue var_name, JSValue var_val) {
+        struct DebuggerSuspendedState *state,
+        JSValue var_name, JSValue var_val)
+{
     JSValue var = JS_NewObject(ctx);
     JS_SetPropertyStr(ctx, var, "name", var_name);
     js_debugger_get_value(ctx, var_val, var, "value");
@@ -187,7 +198,8 @@ static JSValue js_debugger_get_variable(JSContext *ctx,
     return var;
 }
 
-static int js_debugger_get_frame(JSContext *ctx, JSValue args) {
+static int js_debugger_get_frame(JSContext *ctx, JSValue args)
+{
     JSValue reference_property = JS_GetPropertyStr(ctx, args, "frameId");
     int frame;
     JS_ToInt32(ctx, &frame, reference_property);
@@ -196,7 +208,8 @@ static int js_debugger_get_frame(JSContext *ctx, JSValue args) {
     return frame;
 }
 
-static void js_send_stopped_event(JSDebuggerInfo *info, const char *reason) {
+static void js_send_stopped_event(JSDebuggerInfo *info, const char *reason)
+{
     JSContext *ctx = info->debugging_ctx;
 
     JSValue event = JS_NewObject(ctx);
@@ -218,7 +231,8 @@ static void js_free_prop_enum(JSContext *ctx, JSPropertyEnum *tab, uint32_t len)
     }
 }
 
-static uint32_t js_get_property_as_uint32(JSContext *ctx, JSValue obj, const char* property) {
+static uint32_t js_get_property_as_uint32(JSContext *ctx, JSValue obj, const char* property)
+{
     JSValue prop = JS_GetPropertyStr(ctx, obj, property);
     uint32_t ret;
     JS_ToUint32(ctx, &ret, prop);
@@ -226,7 +240,8 @@ static uint32_t js_get_property_as_uint32(JSContext *ctx, JSValue obj, const cha
     return ret;
 }
 
-static void js_process_request(JSDebuggerInfo *info, struct DebuggerSuspendedState *state, JSValue request) {
+static void js_process_request(JSDebuggerInfo *info, struct DebuggerSuspendedState *state, JSValue request)
+{
     JSContext *ctx = info->ctx;
     JSValue command_property = JS_GetPropertyStr(ctx, request, "command");
     const char *command = JS_ToCString(ctx, command_property);
@@ -314,7 +329,9 @@ static void js_process_request(JSDebuggerInfo *info, struct DebuggerSuspendedSta
 
             uint32_t stack_depth = js_debugger_stack_depth(ctx);
             if (frame >= stack_depth) {
-                QJSEXT_LOGD("Invalid: frame: %d, stack_depth: %d", frame, stack_depth);
+#ifdef QUICKJS_EXT_JS_DEBUG_PRINT_LOG
+                printf("[qjs_ext_debugger]: Invalid. frame: %d, stack_depth: %d", frame, stack_depth);
+#endif
             }
             // FIXME: (talos) this assertion may fail when long time debug step.
             assert(frame < stack_depth);
@@ -329,8 +346,10 @@ static void js_process_request(JSDebuggerInfo *info, struct DebuggerSuspendedSta
                 variable = js_debugger_closure_variables(ctx, frame);
             }
             else {
-                // FIXME: (talos) this assertion may fail. Scope may be 3. Should DEBUG_SCOP_INDEX(-3) ?
-                QJSEXT_LOGD("Invalid: scope: %d", scope);
+                // FIXME: this assertion may fail. Scope may be 3. Should DEBUG_SCOP_INDEX(-3) ?
+#ifdef QUICKJS_EXT_JS_DEBUG_PRINT_LOG
+                printf("[qjs_ext_debugger]: Invalid. scope: %d", scope);
+#endif
                 assert(0);
             }
 
@@ -405,7 +424,8 @@ static void js_process_request(JSDebuggerInfo *info, struct DebuggerSuspendedSta
     JS_FreeValue(ctx, request);
 }
 
-static void js_process_breakpoints(JSDebuggerInfo *info, JSValue message) {
+static void js_process_breakpoints(JSDebuggerInfo *info, JSValue message)
+{
     JSContext *ctx = info->ctx;
 
     // force all functions to reprocess their breakpoints.
@@ -431,13 +451,15 @@ static void js_process_breakpoints(JSDebuggerInfo *info, JSValue message) {
     JS_FreeValue(ctx, message);
 }
 
-JSValue js_debugger_file_breakpoints(JSContext *ctx, const char* path) {
+JSValue js_debugger_file_breakpoints(JSContext *ctx, const char* path)
+{
     JSDebuggerInfo *info = js_debugger_info(JS_GetRuntime(ctx));
     JSValue path_data = JS_GetPropertyStr(ctx, info->breakpoints, path);
     return path_data;
 }
 
-static int js_process_debugger_messages(JSDebuggerInfo *info, const uint8_t *cur_pc) {
+static int js_process_debugger_messages(JSDebuggerInfo *info, const uint8_t *cur_pc)
+{
     // continue processing messages until the continue message is received.
     JSContext *ctx = info->ctx;
     struct DebuggerSuspendedState state;
@@ -477,7 +499,9 @@ static int js_process_debugger_messages(JSDebuggerInfo *info, const uint8_t *cur
 
         info->message_buffer[message_length] = '\0';
 
-        QJSEXT_LOGD("--[received from vscode]--: %s", info->message_buffer);
+#ifdef QUICKJS_EXT_JS_DEBUG_PRINT_LOG
+        printf("[qjs_ext_debugger]: received from vscode: %s", info->message_buffer);
+#endif
 
         JSValue message = JS_ParseJSON(ctx, info->message_buffer, message_length, "<debugger>");
         JSValue vtype = JS_GetPropertyStr(ctx, message, "type");
@@ -512,7 +536,8 @@ done:
     return ret;
 }
 
-void js_debugger_exception(JSContext *ctx) {
+void js_debugger_exception(JSContext *ctx)
+{
     JSDebuggerInfo *info = js_debugger_info(JS_GetRuntime(ctx));
     if (!info->exception_breakpoint)
         return;
@@ -527,7 +552,8 @@ void js_debugger_exception(JSContext *ctx) {
     info->ctx = NULL;
 }
 
-static void js_debugger_context_event(JSContext *caller_ctx, const char *reason) {
+static void js_debugger_context_event(JSContext *caller_ctx, const char *reason)
+{
     if (!js_debugger_is_transport_connected(JS_GetRuntime(caller_ctx)))
         return;
 
@@ -545,17 +571,20 @@ static void js_debugger_context_event(JSContext *caller_ctx, const char *reason)
     js_transport_send_event(info, event);
 }
 
-void js_debugger_new_context(JSContext *ctx) {
+void js_debugger_new_context(JSContext *ctx)
+{
     js_debugger_context_event(ctx, "new");
 }
 
-void js_debugger_free_context(JSContext *ctx) {
+void js_debugger_free_context(JSContext *ctx)
+{
     js_debugger_context_event(ctx, "exited");
 }
 
 // in thread check request/response of pending commands.
 // todo: background thread that reads the socket.
-void js_debugger_check(JSContext* ctx, const uint8_t *cur_pc) {
+void js_debugger_check(JSContext* ctx, const uint8_t *cur_pc)
+{
 
     JSDebuggerInfo *info = js_debugger_info(JS_GetRuntime(ctx));
     if (info->is_debugging)
@@ -576,14 +605,19 @@ void js_debugger_check(JSContext* ctx, const uint8_t *cur_pc) {
         char *address = getenv("QUICKJS_DEBUG_LISTEN_ADDRESS");
 
 #ifdef QUICKJS_EXT_JS_DEBUG
-#define QUICKJS_EXT_JS_DEBUG_ADDRESS2(str) #str
-#define QUICKJS_EXT_JS_DEBUG_ADDRESS(str) QUICKJS_EXT_JS_DEBUG_ADDRESS2(str)
-#define QUdi(x) QUICKJS_EXT_JS_DEBUG_ADDRESS(x)
+#ifdef QUICKJS_EXT_JS_DEBUG_ADDRESS
+#define QUICKJS_EXT_JS_DEBUG_STR2(str) #str
+#define QUICKJS_EXT_JS_DEBUG_STR(str) QUICKJS_EXT_JS_DEBUG_STR2(str)
         if (address == NULL) {
-            address = QUICKJS_EXT_JS_DEBUG_ADDRESS(QUICKJS_EXT_JS_DEBUG);
+            address = QUICKJS_EXT_JS_DEBUG_STR(QUICKJS_EXT_JS_DEBUG_ADDRESS);
+#ifdef QUICKJS_EXT_JS_DEBUG_PRINT_LOG
+            printf("[qjs_ext_debugger]: config address: %s", address);
+#endif // QUICKJS_EXT_JS_DEBUG_PRINT_LOG
         }
-        QJSEXT_LOGD("address %s", address);
-#endif
+#undef QUICKJS_EXT_JS_DEBUG_STR
+#undef QUICKJS_EXT_JS_DEBUG_STR2
+#endif // QUICKJS_EXT_JS_DEBUG_ADDRESS
+#endif // QUICKJS_EXT_JS_DEBUG
 
         if (address != NULL && !info->transport_close) {
             js_debugger_wait_connection(ctx, address);
@@ -705,7 +739,8 @@ void js_debugger_check(JSContext* ctx, const uint8_t *cur_pc) {
         info->ctx = NULL;
 }
 
-void js_debugger_free(JSRuntime *rt, JSDebuggerInfo *info) {
+void js_debugger_free(JSRuntime *rt, JSDebuggerInfo *info)
+{
     if (!info->transport_close)
         return;
 
@@ -732,14 +767,13 @@ void js_debugger_free(JSRuntime *rt, JSDebuggerInfo *info) {
     info->debugging_ctx = NULL;
 }
 
-void js_debugger_attach(
-    JSContext* ctx,
-    size_t (*transport_read)(void *udata, char* buffer, size_t length),
-    size_t (*transport_write)(void *udata, const char* buffer, size_t length),
-    size_t (*transport_peek)(void *udata),
-    void (*transport_close)(JSRuntime* rt, void *udata),
-    void *udata
-) {
+void js_debugger_attach(JSContext* ctx,
+                        size_t (*transport_read)(void *udata, char* buffer, size_t length),
+                        size_t (*transport_write)(void *udata, const char* buffer, size_t length),
+                        size_t (*transport_peek)(void *udata),
+                        void (*transport_close)(JSRuntime* rt, void *udata),
+                        void *udata)
+{
     JSRuntime *rt = JS_GetRuntime(ctx);
     JSDebuggerInfo *info = js_debugger_info(rt);
     js_debugger_free(rt, info);
@@ -764,10 +798,12 @@ void js_debugger_attach(
     info->ctx = original_ctx;
 }
 
-int js_debugger_is_transport_connected(JSRuntime *rt) {
+int js_debugger_is_transport_connected(JSRuntime *rt)
+{
     return js_debugger_info(rt)->transport_close != NULL;
 }
 
-void js_debugger_cooperate(JSContext *ctx) {
+void js_debugger_cooperate(JSContext *ctx)
+{
     js_debugger_info(JS_GetRuntime(ctx))->should_peek = 1;
 }

@@ -115,9 +115,12 @@
 #include <errno.h>
 #endif
 
+#ifdef QUICKJS_EXT_LOG_LEVEL_DEBUG
+#include "quickjs-ext-log.h"
+#endif // QUICKJS_EXT_LOG_LEVEL_DEBUG
 #ifdef QUICKJS_EXT_JS_DEBUG
 #include "quickjs-ext-debugger.h"
-#endif
+#endif // QUICKJS_EXT_JS_DEBUG
 
 enum {
     /* classid tag        */    /* union usage   | properties */
@@ -1834,11 +1837,6 @@ int JS_EnqueueJob(JSContext *ctx, JSJobFunc *job_func,
     }
     list_add_tail(&e->link, &rt->job_list);
     return 0;
-}
-
-BOOL JS_IsCallDepthZero(JSRuntime *rt)
-{
-    return rt->current_stack_frame == NULL;
 }
 
 BOOL JS_IsJobPending(JSRuntime *rt)
@@ -54192,7 +54190,9 @@ void JS_AddIntrinsicTypedArrays(JSContext *ctx)
 
 
 #ifdef QUICKJS_EXT_JS_DEBUG
-JSDebuggerLocation js_debugger_current_location(JSContext *ctx, const uint8_t *cur_pc) {
+
+JSDebuggerLocation js_debugger_current_location(JSContext *ctx, const uint8_t *cur_pc)
+{
     JSDebuggerLocation location;
     location.filename = 0;
     JSStackFrame *sf = ctx->rt->current_stack_frame;
@@ -54210,10 +54210,22 @@ JSDebuggerLocation js_debugger_current_location(JSContext *ctx, const uint8_t *c
     location.column = 0;
     return location;
 }
-JSDebuggerInfo *js_debugger_info(JSRuntime *rt) {
+
+void js_debugger_current_location_print(JSContext *ctx, const uint8_t *cur_pc)
+{
+    JSDebuggerLocation location = js_debugger_current_location(ctx, cur_pc);
+    const char* filename_c_str = JS_AtomToCString(ctx, location.filename);
+    printf("[current_js_location] file: %s, line: %d \n", filename_c_str, location.line);
+    JS_FreeCString(ctx, filename_c_str);
+}
+
+JSDebuggerInfo *js_debugger_info(JSRuntime *rt)
+{
     return &rt->debugger_info;
 }
-uint32_t js_debugger_stack_depth(JSContext *ctx) {
+
+uint32_t js_debugger_stack_depth(JSContext *ctx)
+{
     uint32_t stack_index = 0;
     JSStackFrame *sf = ctx->rt->current_stack_frame;
     while (sf != NULL) {
@@ -54222,6 +54234,7 @@ uint32_t js_debugger_stack_depth(JSContext *ctx) {
     }
     return stack_index;
 }
+
 JSValue js_debugger_build_backtrace(JSContext *ctx, const uint8_t *cur_pc)
 {
     JSStackFrame *sf;
@@ -54258,7 +54271,9 @@ JSValue js_debugger_build_backtrace(JSContext *ctx, const uint8_t *cur_pc)
     }
     return ret;
 }
-int js_debugger_check_breakpoint(JSContext *ctx, uint32_t current_dirty, const uint8_t *cur_pc) {
+
+int js_debugger_check_breakpoint(JSContext *ctx, uint32_t current_dirty, const uint8_t *cur_pc)
+{
     JSValue path_data = JS_UNDEFINED;
     if (!ctx->rt->current_stack_frame)
         return 0;
@@ -54367,7 +54382,9 @@ done:
         return 0;
     return b->debugger.breakpoints[pc];
 }
-JSValue js_debugger_local_variables(JSContext *ctx, int stack_index) {
+
+JSValue js_debugger_local_variables(JSContext *ctx, int stack_index)
+{
     JSValue ret = JS_NewObject(ctx);
     // put exceptions on the top stack frame
     if (stack_index == 0 && !JS_IsNull(ctx->rt->current_exception) && !JS_IsUndefined(ctx->rt->current_exception))
@@ -54410,7 +54427,9 @@ JSValue js_debugger_local_variables(JSContext *ctx, int stack_index) {
 done:
     return ret;
 }
-JSValue js_debugger_closure_variables(JSContext *ctx, int stack_index) {
+
+JSValue js_debugger_closure_variables(JSContext *ctx, int stack_index)
+{
     JSValue ret = JS_NewObject(ctx);
     JSStackFrame *sf;
     int cur_index = 0;
@@ -54441,10 +54460,11 @@ JSValue js_debugger_closure_variables(JSContext *ctx, int stack_index) {
 done:
     return ret;
 }
+
 /* debugger needs ability to eval at any stack frame */
 static JSValue js_debugger_eval(JSContext *ctx, JSValueConst this_obj, JSStackFrame *sf,
-                                 const char *input, size_t input_len,
-                                 const char *filename, int flags, int scope_idx)
+                                const char *input, size_t input_len,
+                                const char *filename, int flags, int scope_idx)
 {
     JSParseState s1, *s = &s1;
     int err, js_mode;
@@ -54508,7 +54528,9 @@ fail:
 fail1:
     return JS_EXCEPTION;
 }
-JSValue js_debugger_evaluate(JSContext *ctx, int stack_index, JSValue expression) {
+
+JSValue js_debugger_evaluate(JSContext *ctx, int stack_index, JSValue expression)
+{
     JSStackFrame *sf;
     int cur_index = 0;
     for(sf = ctx->rt->current_stack_frame; sf != NULL; sf = sf->prev_frame) {
@@ -54523,10 +54545,18 @@ JSValue js_debugger_evaluate(JSContext *ctx, int stack_index, JSValue expression
         int scope_idx = b->vardefs ? 0 : -1;
         size_t len;
         const char* str = JS_ToCStringLen(ctx, &len, expression);
-        JSValue ret = js_debugger_eval(ctx, sf->var_buf[b->var_count], sf, str, len, "<debugger>", JS_EVAL_TYPE_DIRECT, scope_idx);
+        JSValue ret = js_debugger_eval(ctx, sf->var_buf[b->var_count], sf, str, len,
+                                       "<debugger>", JS_EVAL_TYPE_DIRECT, scope_idx);
         JS_FreeCString(ctx, str);
         return ret;
     }
     return JS_UNDEFINED;
 }
+
+uintptr_t js_get_current_c_stack_frame_address() {
+    return (uintptr_t)(__builtin_frame_address(0));
+    // TODO: If use MSVC compile:
+    // return (uintptr_t)(_AddressOfReturnAddress());
+}
+
 #endif // QUICKJS_EXT_JS_DEBUG

@@ -86,6 +86,7 @@ JSDebuggerInfo *js_debugger_info(JSRuntime *rt);
 uint32_t js_debugger_stack_depth(JSContext *ctx);
 JSValue js_debugger_build_backtrace(JSContext *ctx, const uint8_t *cur_pc);
 JSDebuggerLocation js_debugger_current_location(JSContext *ctx, const uint8_t *cur_pc);
+void js_debugger_current_location_print(JSContext *ctx, const uint8_t *cur_pc);
 
 // checks to see if a breakpoint exists on the current pc.
 // calls back into js_debugger_file_breakpoints.
@@ -96,6 +97,7 @@ JSValue js_debugger_closure_variables(JSContext *ctx, int stack_index);
 
 // evaluates an expression at any stack frame. JS_Evaluate* only evaluates at the top frame.
 JSValue js_debugger_evaluate(JSContext *ctx, int stack_index, JSValue expression);
+uintptr_t js_get_current_c_stack_frame_address();
 
 // end internal api functions
 

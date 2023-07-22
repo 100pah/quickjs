@@ -17,7 +17,8 @@ struct js_transport_data {
     int handle;
 } js_transport_data;
 
-static size_t js_transport_read(void *udata, char *buffer, size_t length) {
+static size_t js_transport_read(void *udata, char *buffer, size_t length)
+{
     struct js_transport_data* data = (struct js_transport_data *)udata;
     if (data->handle <= 0)
         return -1;
@@ -41,7 +42,8 @@ static size_t js_transport_read(void *udata, char *buffer, size_t length) {
     return ret;
 }
 
-static size_t js_transport_write(void *udata, const char *buffer, size_t length) {
+static size_t js_transport_write(void *udata, const char *buffer, size_t length)
+{
     struct js_transport_data* data = (struct js_transport_data *)udata;
     if (data->handle <= 0)
         return -1;
@@ -52,7 +54,9 @@ static size_t js_transport_write(void *udata, const char *buffer, size_t length)
     if (buffer == NULL)
         return -3;
 
-    QJSEXT_LOGD("--[send to vscode]--: %s \n", buffer);
+#ifdef QUICKJS_EXT_JS_DEBUG_PRINT_LOG
+    printf("[qjs_ext_debugger]: send to vscode: %s \n", buffer);
+#endif
 
     size_t ret = write(data->handle, (const void *) buffer, length);
     if (ret <= 0 || ret > (ssize_t) length)
@@ -61,7 +65,8 @@ static size_t js_transport_write(void *udata, const char *buffer, size_t length)
     return ret;
 }
 
-static size_t js_transport_peek(void *udata) {
+static size_t js_transport_peek(void *udata)
+{
     struct pollfd fds[1];
     int poll_rc;
 
@@ -85,7 +90,8 @@ static size_t js_transport_peek(void *udata) {
     return 1;
 }
 
-static void js_transport_close(JSRuntime* rt, void *udata) {
+static void js_transport_close(JSRuntime* rt, void *udata)
+{
     struct js_transport_data* data = (struct js_transport_data *)udata;
     if (data->handle <= 0)
         return;
@@ -95,7 +101,8 @@ static void js_transport_close(JSRuntime* rt, void *udata) {
 }
 
 // todo: fixup asserts to return errors.
-static struct sockaddr_in js_debugger_parse_sockaddr(const char* address) {
+static struct sockaddr_in js_debugger_parse_sockaddr(const char* address)
+{
     char* port_string = strstr(address, ":");
     assert(port_string);
 
@@ -118,7 +125,8 @@ static struct sockaddr_in js_debugger_parse_sockaddr(const char* address) {
     return addr;
 }
 
-void js_debugger_connect(JSContext *ctx, const char *address) {
+void js_debugger_connect(JSContext *ctx, const char *address)
+{
     struct sockaddr_in addr = js_debugger_parse_sockaddr(address);
 
     int client = socket(AF_INET, SOCK_STREAM, 0);
@@ -129,13 +137,17 @@ void js_debugger_connect(JSContext *ctx, const char *address) {
     struct js_transport_data *data = (struct js_transport_data *)malloc(sizeof(struct js_transport_data));
     memset(data, 0, sizeof(js_transport_data));
     data->handle = client;
-    js_debugger_attach(ctx, js_transport_read, js_transport_write, js_transport_peek, js_transport_close, data);
+    js_debugger_attach(ctx, js_transport_read, js_transport_write,
+                       js_transport_peek, js_transport_close, data);
 }
 
-void js_debugger_wait_connection(JSContext *ctx, const char* address) {
+void js_debugger_wait_connection(JSContext *ctx, const char* address)
+{
     struct sockaddr_in addr = js_debugger_parse_sockaddr(address);
 
-    QJSEXT_LOGD("qjs_ext_debugger: wait_for_connection address: %s", address);
+#ifdef QUICKJS_EXT_JS_DEBUG_PRINT_LOG
+    printf("[qjs_ext_debugger]: wait for connection. address: %s", address);
+#endif
 
     int server = socket(AF_INET, SOCK_STREAM, 0);
     assert(server >= 0);
@@ -156,5 +168,6 @@ void js_debugger_wait_connection(JSContext *ctx, const char* address) {
     struct js_transport_data *data = (struct js_transport_data *)malloc(sizeof(struct js_transport_data));
     memset(data, 0, sizeof(js_transport_data));
     data->handle = client;
-    js_debugger_attach(ctx, js_transport_read, js_transport_write, js_transport_peek, js_transport_close, data);
+    js_debugger_attach(ctx, js_transport_read, js_transport_write,
+                       js_transport_peek, js_transport_close, data);
 }
