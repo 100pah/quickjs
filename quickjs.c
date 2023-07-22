@@ -1839,6 +1839,11 @@ int JS_EnqueueJob(JSContext *ctx, JSJobFunc *job_func,
     return 0;
 }
 
+BOOL JS_IsCallDepthZero(JSRuntime *rt)
+{
+    return rt->current_stack_frame == NULL;
+}
+
 BOOL JS_IsJobPending(JSRuntime *rt)
 {
     return !list_empty(&rt->job_list);
